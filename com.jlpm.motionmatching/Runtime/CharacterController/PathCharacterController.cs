@@ -1,6 +1,7 @@
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace MotionMatching
 {
@@ -28,6 +29,7 @@ namespace MotionMatching
         private int NumberPredictionPos { get { return TrajectoryPosPredictionFrames.Length; } }
         private int NumberPredictionRot { get { return TrajectoryRotPredictionFrames.Length; } }
         // --------------------------------------------------------------------------
+        
 
         private void Start()
         {
@@ -89,18 +91,37 @@ namespace MotionMatching
             while (remainingTime > 0)
             {
                 KeyPoint current = Path[currentKeypoint];
+                
+                Vector3 currentPosition = (Vector3)GetCurrentPosition();
                 KeyPoint next = Path[(currentKeypoint + 1) % Path.Length];
-                float2 dir = next.Position - current.Position;
+                KeyPoint usage = next;
+                
+                var colliders = Physics.OverlapSphere(currentPosition, 2f);
+                foreach (var collider in colliders)
+                {
+                    if (collider.tag.Equals("collidable"))
+                    {
+                        KeyPoint avoid = new KeyPoint();
+                        avoid.Position = next.Position;
+                        avoid.Position.x += 7;
+                        avoid.Position.y += 7;
+                        avoid.Velocity = next.Velocity;
+                        usage = avoid;
+                        break;
+                    }
+                }
+
+                float2 dir = usage.Position - current.Position;
                 float2 dirNorm = math.normalize(dir);
                 float2 currentPos = current.Position + dir * currentKeyPointT;
-                float timeToNext = math.distance(currentPos, next.Position) / current.Velocity; // Time needed to get to the next keypoint
+                float timeToNext = math.distance(currentPos, usage.Position) / current.Velocity; // Time needed to get to the next keypoint
                 float dt = math.min(remainingTime, timeToNext);
                 remainingTime -= dt;
                 if (remainingTime <= 0)
                 {
                     // Move
                     currentPos += dirNorm * current.Velocity * dt;
-                    currentKeyPointT = math.distance(current.Position, currentPos) / math.distance(current.Position, next.Position);
+                    currentKeyPointT = math.distance(current.Position, currentPos) / math.distance(current.Position, usage.Position);
                     nextPos = currentPos;
                     nextDir = dirNorm;
                 }
