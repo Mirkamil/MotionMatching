@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.Collections;
 using Unity.Mathematics;
 using UnityEngine;
@@ -29,6 +30,9 @@ namespace MotionMatching
         private int NumberPredictionPos { get { return TrajectoryPosPredictionFrames.Length; } }
         private int NumberPredictionRot { get { return TrajectoryRotPredictionFrames.Length; } }
         // --------------------------------------------------------------------------
+
+        [SerializeField] private float radius = 3f;
+        [SerializeField] private float avoidDistance = 5f;
         
 
         private void Start()
@@ -95,18 +99,22 @@ namespace MotionMatching
                 Vector3 currentPosition = (Vector3)GetCurrentPosition();
                 KeyPoint next = Path[(currentKeypoint + 1) % Path.Length];
                 KeyPoint usage = next;
+
                 
-                var colliders = Physics.OverlapSphere(currentPosition, 2f);
+                var colliders = Physics.OverlapSphere(currentPosition, radius);
                 foreach (var collider in colliders)
                 {
                     if (collider.tag.Equals("collidable"))
                     {
+                        
                         KeyPoint avoid = new KeyPoint();
-                        avoid.Position = next.Position;
-                        avoid.Position.x += 7;
-                        avoid.Position.y += 7;
-                        avoid.Velocity = next.Velocity;
+                        avoid.Position = new float2();
+                        var position = collider.transform.position;
+                        avoid.Position.x = position.x  + avoidDistance;
+                        avoid.Position.y += position.z  + avoidDistance;
+                        avoid.Velocity = current.Velocity;
                         usage = avoid;
+                        
                         break;
                     }
                 }
@@ -199,6 +207,11 @@ namespace MotionMatching
             {
                 return transform.position + new Vector3(Position.x, 0, Position.y);
             }
+        }
+
+        private IEnumerator Wait(float seconds)
+        {
+            yield return new WaitForSeconds(seconds);
         }
 
 #if UNITY_EDITOR
